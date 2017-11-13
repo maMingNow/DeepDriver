@@ -14,7 +14,7 @@ import java.util.Map.Entry;
 import java.util.Set;
 import java.util.TreeSet;
 
-
+//计算词与词之间的相似度
 public class Word2vecUtil {
 	
 	public static void main(String[] args) throws IOException 
@@ -57,12 +57,12 @@ public class Word2vecUtil {
 	}
 
 	
-	
+	//key是词,value是词对应的向量集合
 	private HashMap<String, float[]> wordMap = new HashMap<String, float[]>();
 
-	private int words;
-	private int size;
-	private int topNSize = 40;
+	private int words;//词语数量
+	private int size;//每一个词对应的向量size
+	private int topNSize = 40;//做多关联的数据数量
 
 	/**
 	 * 加载模型
@@ -70,6 +70,9 @@ public class Word2vecUtil {
 	 * @param path
 	 *            模型的路径
 	 * @throws IOException
+	 * 存储内容的格式:
+	 * 比如一共存储10个词,每一个词的向量size是5,则
+	 * 10、5 、词语1、5个float、空格、词语2、5个float等等 
 	 */
 	public void loadModel(String path) throws IOException 
 	{
@@ -83,16 +86,16 @@ public class Word2vecUtil {
 			// //读取词数
 			words = Integer.parseInt(readString(dis));
 			// //大小
-			size = Integer.parseInt(readString(dis));
+			size = Integer.parseInt(readString(dis));//向量大小
 
 			String word;
 			float[] vectors = null;
-			for (int i = 0; i < words; i++) {
-				word = readString(dis);
+			for (int i = 0; i < words; i++) {//循环读取每一个词
+				word = readString(dis);//读取词
 				vectors = new float[size];
 				len = 0;
 				for (int j = 0; j < size; j++) {
-					vector = readFloat(dis);
+					vector = readFloat(dis);//临时向量的一个值
 					len += vector * vector;
 					vectors[j] = (float) vector;
 				}
@@ -102,7 +105,7 @@ public class Word2vecUtil {
 					vectors[j] = (float) (vectors[j] / len);
 				}
 				wordMap.put(word, vectors);
-				dis.read();
+				dis.read();//过滤空格
 			}
 
 		} finally {
@@ -121,23 +124,25 @@ public class Word2vecUtil {
 	 */
 	public Set<WordEntry> distance(String word) 
 	{
-		float[] wordVector = getWordVector(word);
+		float[] wordVector = getWordVector(word);//获取该词语的向量
 		if (wordVector == null) 
 		{
 			return null;
 		}
-		Set<Entry<String, float[]>> entrySet = wordMap.entrySet();
+		
+		//计算该词与所有的词的距离
+		Set<Entry<String, float[]>> entrySet = wordMap.entrySet();//所有的词
 		float[] tempVector = null;
-		List<WordEntry> wordEntrys = new ArrayList<WordEntry>(topNSize);
+		List<WordEntry> wordEntrys = new ArrayList<WordEntry>(topNSize);//存储最接近的词语集合
 		String name = null;
-		for (Entry<String, float[]> entry : entrySet) {
+		for (Entry<String, float[]> entry : entrySet) {//循环每一个词
 			name = entry.getKey();
-			if (name.equals(word)) {
+			if (name.equals(word)) {//词就是本身
 				continue;
 			}
-			float dist = 0;
-			tempVector = entry.getValue();
-			for (int i = 0; i < wordVector.length; i++) {
+			float dist = 0;//总的距离值
+			tempVector = entry.getValue();//每一个词的向量
+			for (int i = 0; i < wordVector.length; i++) {//计算向量距离
 				dist += wordVector[i] * tempVector[i];
 			}
 			insertTopN(name, dist, wordEntrys);
@@ -177,7 +182,7 @@ public class Word2vecUtil {
 	 * @param wordVector2
 	 * @return
 	 */
-	public  float vectorSimilarity(float[] wordVector1, float[] wordVector2)
+	public float vectorSimilarity(float[] wordVector1, float[] wordVector2)
 	{		
 		if (wordVector1 == null||wordVector2==null) 
 		{
@@ -230,15 +235,15 @@ public class Word2vecUtil {
 
 	
 	
-	
+	//这部分使用优先队列更好
 	private void insertTopN(String name, float score, List<WordEntry> wordsEntrys) 
 	{
 		if (wordsEntrys.size() < topNSize) {
 			wordsEntrys.add(new WordEntry(name, score));
 			return;
 		}
-		float min = Float.MAX_VALUE;
-		int minOffe = 0;
+		float min = Float.MAX_VALUE;//最小的分数
+		int minOffe = 0;//最小分数在集合的index
 		for (int i = 0; i < topNSize; i++) {
 			WordEntry wordEntry = wordsEntrys.get(i);
 			if (min > wordEntry.score) {
@@ -247,7 +252,7 @@ public class Word2vecUtil {
 			}
 		}
 
-		if (score > min) {
+		if (score > min) {//分数比最小的大.则存储到该位置
 			wordsEntrys.set(minOffe, new WordEntry(name, score));
 		}
 	}
@@ -290,6 +295,7 @@ public class Word2vecUtil {
 		return wordMap.get(word);
 	}
 
+	//读取四个字节
 	public static float readFloat(InputStream is) throws IOException 
 	{
 		byte[] bytes = new byte[4];
@@ -299,7 +305,7 @@ public class Word2vecUtil {
 
 	/**
 	 * 读取一个float
-	 * 
+	 * 从字节数组中读取4个字节,组成float
 	 * @param b
 	 * @return
 	 */
@@ -315,22 +321,22 @@ public class Word2vecUtil {
 
 	/**
 	 * 读取一个字符串
-	 * 
+	 * 遇见换行或者空格,则停止读取
 	 * @param dis
 	 * @return
 	 * @throws IOException
 	 */
 	private static String readString(DataInputStream dis) throws IOException 
 	{
-		byte[] bytes = new byte[MAX_SIZE];
-		byte b = dis.readByte();
+		byte[] bytes = new byte[MAX_SIZE];//读取临时的数据
+		byte b = dis.readByte();//读取一个字节
 		int i = -1;
 		StringBuilder sb = new StringBuilder();
-		while (b != 32 && b != 10) {
+		while (b != 32 && b != 10) {//不是空格,也不是换行符号
 			i++;
 			bytes[i] = b;
 			b = dis.readByte();
-			if (i == 49) {
+			if (i == 49) {//说明数组已经满了,要先写入进去,重新初始化一个空的数组
 				sb.append(new String(bytes));
 				i = -1;
 				bytes = new byte[MAX_SIZE];
@@ -364,8 +370,4 @@ public class Word2vecUtil {
 	{
 		return size;
 	}
-	
-	
-	
-	
 }
